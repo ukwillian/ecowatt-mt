@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoWatt MT - Análise de Consumo</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #2e7d32;
+            --secondary-color: #4caf50;
+            --bg-color: #f1f8e9;
+            --text-color: #333;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        input, select, button {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .btn-danger {
+            background-color: #d32f2f;
+        }
+        
+        .btn-danger:hover {
+            background-color: #f44336;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .results {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #e8f5e9;
+            border-left: 5px solid var(--primary-color);
+            border-radius: 6px;
+        }
+
+        .chart-container {
+            margin-top: 30px;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>EcoWatt MT</h1>
+        <p>Sistema de Análise de Consumo Energético Residencial</p>
+    </header>
+
+    <div class="container">
+        <div class="form-grid">
+            <div class="input-group">
+                <label for="nome">Nome do Aparelho</label>
+                <input type="text" id="nome" placeholder="Ex: Geladeira">
+            </div>
+            <div class="input-group">
+                <label for="potencia">Potência</label>
+                <input type="number" id="potencia" placeholder="Ex: 400">
+            </div>
+            <div class="input-group">
+                <label for="unidade">Unidade</label>
+                <select id="unidade">
+                    <option value="W">Watts (W)</option>
+                    <option value="kW">Kilowatts (kW)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="horas">Horas de uso/dia</label>
+                <input type="number" id="horas" placeholder="Ex: 8">
+            </div>
+            <div class="input-group">
+                <label for="dias">Dias de uso/mês</label>
+                <input type="number" id="dias" placeholder="Ex: 30">
+            </div>
+            <div class="input-group">
+                <label for="tarifa">Tarifa (R$/kWh)</label>
+                <input type="number" id="tarifa" step="0.01" placeholder="Ex: 0.90" value="0.90">
+            </div>
+        </div>
+        
+        <button onclick="adicionarAparelho()">Adicionar Aparelho</button>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Aparelho</th>
+                    <th>Potência</th>
+                    <th>Consumo Mensal (kWh)</th>
+                    <th>Custo Mensal (R$)</th>
+                    <th>Ação</th>
+                </tr>
+            </thead>
+            <tbody id="tabela-corpo">
+                </tbody>
+        </table>
+
+        <div class="results" id="resultados" style="display: none;">
+            <h3>Resumo Geral</h3>
+            <p><strong>Consumo Total Mensal:</strong> <span id="res-consumo">0</span> kWh</p>
+            <p><strong>Custo Total Mensal:</strong> R$ <span id="res-custo">0.00</span></p>
+            <hr>
+            <h4>Projeções</h4>
+            <p><strong>Gasto em 6 meses:</strong> R$ <span id="proj-6m">0.00</span></p>
+            <p><strong>Gasto em 1 ano:</strong> R$ <span id="proj-1y">0.00</span></p>
+            <hr>
+            <h4>Impacto Ambiental</h4>
+            <p><strong>Estimativa de Emissão de CO2:</strong> <span id="res-co2">0</span> kg/mês</p>
+            <small>*Considerando um fator médio de 0.0385 kg de CO2 por kWh no Brasil.</small>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="meuGrafico"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let aparelhos = [];
+        let grafico;
+
+        function adicionarAparelho() {
+            const nome = document.getElementById('nome').value;
+            const potenciaRaw = parseFloat(document.getElementById('potencia').value);
+            const unidade = document.getElementById('unidade').value;
+            const horas = parseFloat(document.getElementById('horas').value);
+            const dias = parseFloat(document.getElementById('dias').value);
+            const tarifa = parseFloat(document.getElementById('tarifa').value);
+
+            if (!nome || !potenciaRaw || !horas || !dias || !tarifa) {
+                alert("Por favor, preencha todos os campos corretamente.");
+                return;
+            }
+
+            // Converter para kW se estiver em Watts
+            const potenciaKW = unidade === 'W' ? potenciaRaw / 1000 : potenciaRaw;
+            
+            // Cálculos
+            const consumoKwh = potenciaKW * horas * dias;
+            const custoMensal = consumoKwh * tarifa;
+
+            const aparelho = {
+                id: Date.now(),
+                nome: nome,
+                potencia: `${potenciaRaw}${unidade}`,
+                consumo: consumoKwh,
+                custo: custoMensal
+            };
+
+            aparelhos.push(aparelho);
+            
+            // Limpar campos principais
+            document.getElementById('nome').value = '';
+            document.getElementById('potencia').value = '';
+            
+            atualizarInterface();
+        }
+
+        function removerAparelho(id) {
+            aparelhos = aparelhos.filter(a => a.id !== id);
+            atualizarInterface();
+        }
+
+        function atualizarInterface() {
+            const tbody = document.getElementById('tabela-corpo');
+            tbody.innerHTML = '';
+
+            let consumoTotal = 0;
+            let custoTotal = 0;
+
+            // Ordenar por maior consumo (Ranking)
+            aparelhos.sort((a, b) => b.consumo - a.consumo);
+
+            aparelhos.forEach(ap => {
+                consumoTotal += ap.consumo;
+                custoTotal += ap.custo;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${ap.nome}</td>
+                    <td>${ap.potencia}</td>
+                    <td>${ap.consumo.toFixed(2)}</td>
+                    <td>R$ ${ap.custo.toFixed(2)}</td>
+                    <td><button class="btn-danger" onclick="removerAparelho(${ap.id})">Excluir</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            if (aparelhos.length > 0) {
+                document.getElementById('resultados').style.display = 'block';
+                document.getElementById('res-consumo').innerText = consumoTotal.toFixed(2);
+                document.getElementById('res-custo').innerText = custoTotal.toFixed(2);
+                
+                // Projeções
+                document.getElementById('proj-6m').innerText = (custoTotal * 6).toFixed(2);
+                document.getElementById('proj-1y').innerText = (custoTotal * 12).toFixed(2);
+
+                // Estimativa de CO2 (Fator de emissão Brasil médio ~0.0385 kg CO2/kWh)
+                const co2 = consumoTotal * 0.0385;
+                document.getElementById('res-co2').innerText = co2.toFixed(2);
+
+                atualizarGrafico();
+            } else {
+                document.getElementById('resultados').style.display = 'none';
+                if(grafico) grafico.destroy();
+            }
+        }
+
+        function atualizarGrafico() {
+            const ctx = document.getElementById('meuGrafico').getContext('2d');
+            
+            const nomes = aparelhos.map(a => a.nome);
+            const consumos = aparelhos.map(a => a.consumo);
+
+            if (grafico) {
+                grafico.destroy();
+            }
+
+            grafico = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: nomes,
+                    datasets: [{
+                        label: 'Consumo Mensal (kWh)',
+                        data: consumos,
+                        backgroundColor: [
+                            '#b71c1c', // 1º - Vermelho escuro (Maior consumo / Alerta máximo)
+                            '#c62828', // 2º - Vermelho forte
+                            '#d32f2f', // 3º - Vermelho
+                            '#e53935', // 4º - Vermelho claro
+                            '#f44336', // 5º - Vermelho padrão
+                            '#ef5350', // 6º - Vermelho coral
+                            '#ff5722', // 7º - Laranja avermelhado forte
+                            '#ff7043', // 8º - Laranja avermelhado claro
+                            '#ff9800', // 9º - Laranja padrão
+                            '#ffa726', // 10º - Laranja claro
+                            '#ffb300', // 11º - Âmbar escuro
+                            '#ffc107', // 12º - Âmbar padrão
+                            '#ffeb3b', // 13º - Amarelo vibrante
+                            '#d4e157', // 14º - Verde amarelado claro
+                            '#cddc39', // 15º - Verde limão
+                            '#9ccc65', // 16º - Verde claro
+                            '#81c784', // 17º - Verde menta
+                            '#66bb6a', // 18º - Verde suave
+                            '#4caf50', // 19º - Verde padrão
+                            '#2e7d32'  // 20º - Verde escuro (Menor consumo / Mais eficiente)
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        title: { display: true, text: 'Participação no Consumo Total' }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
